@@ -102,13 +102,15 @@ class AIService:
         fecha_referencia = datetime.fromisoformat(fecha_actual).strftime("%Y-%m-%d")
         
         datos_modelo = request.datos_clinicos
-        
+
         resultado_sanitario = evaluar_vacunas(
             datos_modelo.vacunas,
             fecha_referencia
         )
         
         datos = datos_modelo.model_dump()
+        
+        
         datos["evaluacion_sanitaria"] = resultado_sanitario
         datos["fecha_actual"] = fecha_referencia
 

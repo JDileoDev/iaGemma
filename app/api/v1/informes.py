@@ -16,6 +16,7 @@ from app.models.schemas import (
 from app.services.ai_service import AIService
 
 import app.repositories.ia_repository as db_ia
+import app.services.filtrar_visitas_service as filtro_v
 from app.api.dependencies import get_ai_service
 from app.core.logging import get_logger
 import time
@@ -66,6 +67,7 @@ async def resumen_ia(request: ResumeniaRequest, ai_service: AIService = Depends(
     try:
         logger.info(f"Procesando resumen con modelo: {request.model}")
         
+        await filtro_v.filtrar_visitas(request)
         # Guardar registro de la solicitud (input)
         guardar_request = await db_ia.save_request(
             request.id_paciente,
@@ -74,7 +76,7 @@ async def resumen_ia(request: ResumeniaRequest, ai_service: AIService = Depends(
         if not guardar_request:
             # Si es None, enviamos al cliente el resumen persistido para ese request exacto
             resultado_metrica = "CACHE_HIT"
-            id_paciente = int(request.id_paciente)
+            id_paciente = request.id_paciente
             data = db_ia.total_resumenes_ia_paciente(id_paciente)
             return data[0]
         else:
