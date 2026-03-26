@@ -88,7 +88,7 @@ class ResumeniaRequest(BaseModel):
     model: str = Field(default="meta/llama-3.3-70b-instruct", description="AI model to use")
     
     # Campos obligatorios vinculados al a base de datos.
-    id_paciente: int = Field(... , description="ID del paciente")
+    id_paciente: str = Field(... , description="ID del paciente")
     datos_clinicos: DatosClinicos = Field(... , description="Historial clinico")
 
     # Parámetros de control de la IA.
@@ -125,7 +125,7 @@ class ResumenEstructurado(BaseModel):
 class ResumeniaResponse(BaseModel):
     """Respuesta final del microservicio al cliente."""
     id_resumenia: str = Field(..., description="ID único del resumen")
-    id_paciente: int = Field(..., description="ID del paciente asociado")
+    id_paciente: str = Field(..., description="ID del paciente asociado")
     resumen_completo : str = Field(..., description="Resumen narrativo generado por la IA")
     resumen_estructurado: ResumenEstructurado = Field(..., description="Datos extraidos en formato JSON")
     modelo: str = Field(..., description="Modelo utilizado para la generación")
@@ -139,7 +139,7 @@ class ResumeniaResponse(BaseModel):
 class ModeloRequest(BaseModel):
     """Schema para validar requests almacenados."""
     id_request_ia : str = Field(..., description="ID del request")
-    id_paciente : int = Field(..., description="ID del paciente")
+    id_paciente : str = Field(..., description="ID del paciente")
     datos_clinicos : DatosClinicos = Field(..., description="Historia clinica del paciente")
     fecha_request: datetime = Field(..., description="Fecha del request" )
     hash: str = Field (... , description= "Hash del request")
@@ -150,7 +150,7 @@ class RequestsPaciente(BaseModel):
 class ModeloResumen(BaseModel):
     """Schema para validar resúmenes recuperados de la DB."""
     id_resumenia: str = Field(..., description="ID resumen IA")
-    id_paciente : int = Field(..., description="ID del paciente")
+    id_paciente : str = Field(..., description="ID del paciente")
     resumen_completo: str = Field(..., description="Texto completo del resumen")
     resumen_estructurado: ResumenEstructurado = Field(..., description="Resumen IA estructurado")
     fecha_generacion: datetime = Field(...,description= "Fecha de generacion del resumen IA") 
