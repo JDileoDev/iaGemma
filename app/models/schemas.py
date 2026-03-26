@@ -32,6 +32,7 @@ class Paciente(BaseModel):
 
 class Visitas(BaseModel):
     """Registro de consultas médicas."""
+    id_visitas: str
     fecha: str
     motivo_consulta: str
     diagnostico:Optional[str] = None
@@ -41,6 +42,7 @@ class Visitas(BaseModel):
 
 class Vacunas(BaseModel):
     """Registro de inmunizaciones."""
+    id_vacunas : str
     tipo: str
     nombre_cientifico: str
     fecha_aplicacion: str
