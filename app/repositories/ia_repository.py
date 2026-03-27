@@ -5,7 +5,7 @@ import json, hashlib
 
 logger = get_logger(__name__)
 
-def generar_hash(id_paciente: int ,datos : DatosClinicos ):
+def generar_hash(id_paciente: str ,datos : DatosClinicos ):
         """
         Genera el hash del input original
         """
@@ -26,7 +26,7 @@ def generar_hash(id_paciente: int ,datos : DatosClinicos ):
             logger.error(f"Error al hashear el registro: {str(e)}")
             raise e
 
-async def save_request(id_paciente: int, datos_clinicos: DatosClinicos):
+async def save_request(id_paciente: str, datos_clinicos: DatosClinicos):
         """
         Registra el input original en 'ia_request'.
         Fundamental para trazavilidad y re-entrenamiento del modelo.
@@ -45,7 +45,7 @@ async def save_request(id_paciente: int, datos_clinicos: DatosClinicos):
         except Exception as e:
             logger.info(f"Error guardando datos en DB: {str(e)}")
 
-def total_request_paciente(id_paciente: int) -> RequestsPaciente:
+def total_request_paciente(id_paciente: str) -> RequestsPaciente:
     """
     Recuperar el historial de peticiones (inputs) enviadas a la IA para un paciente.
     """
@@ -100,7 +100,7 @@ def total_resumenes_ia():
             raise ValueError("DB_ERROR")
         
 
-def total_resumenes_ia_paciente(id_paciente: int) -> ResumenesPaciente:
+def total_resumenes_ia_paciente(id_paciente: str) -> ResumenesPaciente:
         """
         Consulta el historial de informes/resúmenes generados por la IA
         específicamente para un paciente.
@@ -157,7 +157,7 @@ def total_requests():
             logger.error(f"Error obteniendo resumenes IA: {str(e)}")
             raise ValueError("DB_ERROR") 
 
-def eliminar_registro( id_registro : int):
+def eliminar_registro( id_registro : str):
         """
         Elimina un registro de auditoria de la 'ia_request'.
         Se utiliza para limpieza autómatica cuando la generación de la IA falla
@@ -202,3 +202,18 @@ def registrar_metricas_db(resultado: str, segundos: float , error: str = None):
         except Exception as e:
             # 2. Logueamos el error si falla la persistencia.
             logger.error(f"no se pudo guardar la métrica: {e}")
+
+def obtener_ultimo_resumen(id_paciente: str):
+    resultado = (
+        supabase.table("resumen_ia")
+        .select("resumen_estructurado")
+        .eq("id_paciente", id_paciente)
+        .order("fecha_generacion", desc=True)
+        .limit(1)
+        .execute()
+
+    )
+
+    if resultado.data:
+        return resultado.data[0]
+    return None

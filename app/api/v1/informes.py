@@ -92,7 +92,7 @@ async def resumen_ia(request: ResumeniaRequest, ai_service: AIService = Depends(
                 fecha_actual
                 )
             return data
-    
+
     except ValueError as e:
         resultado_metrica = "FALLO"
         error_msg = str(e)
