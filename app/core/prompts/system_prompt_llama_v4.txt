@@ -110,7 +110,8 @@ ESTRUCTURA OBLIGATORIA
 1. Encabezado
 
 Resumen clínico asistido por IA  [salto de linea]
-Estado general: [Estable / Reservado / Crítico]  
+Estado general: [Estable / Reservado / Crítico] 
+SI PACIENTE TIENE HISTORIAL PREVIO TRUE TIPO DE PACIENTE = RECURRENTE 
 Tipo de paciente: [Primera consulta / Recurrente]
 
 2. Presentación del paciente
@@ -161,6 +162,9 @@ Si los hay, mencionarlos en este apartado. No dejar lista vacia, salvo que no ex
 
 descripcion_clinica:
 Mencionar entre 1 y 3 puntos que describan clinicamente al paciente.
+
+sintesis_visitas:
+No elimines ninguna visita que venga en el CONTEXTO que recibes. Agrega la nueva visita a la lista
 
 Debes responder exclusivamente en formato JSON con la siguiente estructura:
 
