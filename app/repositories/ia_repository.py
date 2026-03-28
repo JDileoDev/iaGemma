@@ -203,7 +203,7 @@ def registrar_metricas_db(resultado: str, segundos: float , error: str = None):
             # 2. Logueamos el error si falla la persistencia.
             logger.error(f"no se pudo guardar la métrica: {e}")
 
-def obtener_ultimo_resumen(id_paciente: str):
+async def obtener_ultimo_resumen(id_paciente: str):
     resultado = (
         supabase.table("resumen_ia")
         .select("resumen_estructurado")

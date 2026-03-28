@@ -13,7 +13,7 @@ async def filtrar_visitas(request):
             .eq("id_paciente", request.id_paciente)
             .execute()
         )
-        print(resultado.data)
+    
 
         ids_sucios =[v.get("id_visitas") for visitas in resultado.data for v in visitas.get("visitas") ]
         

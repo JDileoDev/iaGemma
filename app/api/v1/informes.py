@@ -86,6 +86,7 @@ async def resumen_ia(request: ResumeniaRequest, ai_service: AIService = Depends(
         
         # Generación y persistencia automática del resumen (Output)
         # Nota: 'generar_resumenia' internamente guarda el resultado en DB
+            
             data = await ai_service.generar_resumenia(
                 request,
                 id_request,

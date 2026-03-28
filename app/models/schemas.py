@@ -83,23 +83,6 @@ class DatosClinicos(BaseModel):
                 
         return self
 
-class ResumeniaRequest(BaseModel):
-    """Modelo principal para solicitar un nuevo resumen a la IA."""
-    model: str = Field(default="meta/llama-3.3-70b-instruct", description="AI model to use")
-    
-    # Campos obligatorios vinculados al a base de datos.
-    id_paciente: str = Field(... , description="ID del paciente")
-    datos_clinicos: DatosClinicos = Field(... , description="Historial clinico")
-
-    # Parámetros de control de la IA.
-    max_tokens: Optional[int] = Field(default=1000, ge=1, le=4096, description="Maximum tokens to generate")
-    temperature: Optional[float] = Field(default=0.0, ge=0.0, le=2.0, description="Sampling temperature")
-    frequency_penalty: Optional[float] = Field(default=1.5)
-    presence_penalty : Optional[float] = Field(default=0.5)
-    stream: Optional[bool] = Field(default=False, description="Enable streaming response")
-    fecha_actual: Optional[datetime] = Field(default_factory=datetime.now)
-# --- Modelos de Respuesta Estructurada (JSON) ---
-
 class VacunaResponse(BaseModel):
     nombre: str
     fecha_aplicacion: str
@@ -121,6 +104,24 @@ class ResumenEstructurado(BaseModel):
     tratamiento_indicado: str
     factores_riesgo: List[str]
     puntos_clave_proximas_consultas: List[str]
+
+class ResumeniaRequest(BaseModel):
+    """Modelo principal para solicitar un nuevo resumen a la IA."""
+    model: str = Field(default="meta/llama-3.3-70b-instruct", description="AI model to use")
+    
+    # Campos obligatorios vinculados al a base de datos.
+    id_paciente: str = Field(... , description="ID del paciente")
+    datos_clinicos: DatosClinicos = Field(... , description="Historial clinico")
+    # Parámetros de control de la IA.
+    max_tokens: Optional[int] = Field(default=1000, ge=1, le=4096, description="Maximum tokens to generate")
+    temperature: Optional[float] = Field(default=0.0, ge=0.0, le=2.0, description="Sampling temperature")
+    frequency_penalty: Optional[float] = Field(default=1.5)
+    presence_penalty : Optional[float] = Field(default=0.5)
+    stream: Optional[bool] = Field(default=False, description="Enable streaming response")
+    fecha_actual: Optional[datetime] = Field(default_factory=datetime.now)
+# --- Modelos de Respuesta Estructurada (JSON) ---
+
+
 
 class ResumeniaResponse(BaseModel):
     """Respuesta final del microservicio al cliente."""
