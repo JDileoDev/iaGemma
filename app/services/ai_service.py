@@ -21,6 +21,7 @@ from app.core.logging import get_logger
 from app.core.security import mask_api_key
 from app.services.gestion_vacunas import evaluar_vacunas
 from app.core.prompt_manager import cargar_prompt
+from app.repositories import ia_repository as db_ia
 
 logger = get_logger(__name__)
 
@@ -93,7 +94,7 @@ class AIService:
 
     async def generar_resumenia(self, 
                                 request: ResumeniaRequest ,
-                                id_request_ia: int,
+                                id_request_ia: str,
                                 fecha_actual: str
                                 ) -> ResumeniaResponse :
         """Cordina la generación del resumen médico con IA y su persistencia
@@ -123,7 +124,7 @@ class AIService:
         )
 
         datos["visitas"] = visitas_ordenadas
-        
+        print(datos) 
         # 1. Prompt Engineering: Cargamos instruccions externas y armamos el historial
         system_prompt = cargar_prompt()
         messages = [
@@ -134,9 +135,9 @@ class AIService:
             {
                 "role": "user", 
                 "content": (
-                    "DATOS DEL PACIENTE:\n"
+                    f"CON ESTE CONTEXTO {await db_ia.obtener_ultimo_resumen(request.id_paciente)}\n Y ESTOS DATOS DEL PACIENTE:\n"
                     f"```json\n{datos}\n```\n"
-                    "Transforma estos datos en un resumen narrativo fluido, profesional y humano.<|eot|>"
+                    "Transformalos en un resumen narrativo fluido, profesional y humano.<|eot|>"
                 )
             }
         ]   
