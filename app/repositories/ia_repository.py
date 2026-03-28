@@ -204,16 +204,20 @@ def registrar_metricas_db(resultado: str, segundos: float , error: str = None):
             logger.error(f"no se pudo guardar la métrica: {e}")
 
 async def obtener_ultimo_resumen(id_paciente: str):
-    resultado = (
-        supabase.table("resumen_ia")
-        .select("resumen_estructurado")
-        .eq("id_paciente", id_paciente)
-        .order("fecha_generacion", desc=True)
-        .limit(1)
-        .execute()
+    
+    try:
+        resultado = (
+            supabase.table("resumen_ia")
+            .select("resumen_estructurado")
+            .eq("id_paciente", id_paciente)
+            .order("fecha_generacion", desc=True)
+            .limit(1)
+            .execute()
 
-    )
+        )
 
-    if resultado.data:
-        return resultado.data[0]
-    return None
+        if resultado.data:
+            return resultado.data[0]
+        return None
+    except Exception as e:
+        logger.error(f"No se pudo obtener el resumen {e}")
