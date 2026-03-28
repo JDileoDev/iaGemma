@@ -17,17 +17,15 @@ class ChatMessage(BaseModel):
 class Paciente(BaseModel):
     """Información base de la mascota."""
     nombre: str
-    especie: str
-    edad: int
-    sexo: str
-    raza: str
-    color: str
+    especie: Optional[str] = None
+    edad: Optional[int] = None
+    sexo: Optional[str] = None
+    raza: Optional[str] = None
+    color: Optional[str] = None
     senia: Optional[str] = None
-    peso: int | float
-    # Permitimos NoNe para que la API no falle si el dato no viene del Frontend.
-    # La IA usará este 'null' para sugerir completar la ficha.
-    esterilizado: bool | None = None
-    tiene_microchip: bool | None = None
+    peso: Optional[int | float] = None
+    esterilizado: Optional[bool] = None
+    tiene_microchip: Optional[bool] = None
     num_microchip: Optional[str] = None
 
 class Visitas(BaseModel):
@@ -132,7 +130,7 @@ class ResumeniaResponse(BaseModel):
     modelo: str = Field(..., description="Modelo utilizado para la generación")
     fecha_generacion: datetime = Field(default_factory=datetime.now, description="Fecha de creacion del resumen")
     
-    usage: Optional[Dict[str, int]] = Field(default=None, description="Token usage information")
+    usage: Optional[Dict[str, Any]] = Field(default=None, description="Token usage information")
     model_config = ConfigDict(from_attributes=True)
 
 # --- Modelos para Listado y Consultas ---

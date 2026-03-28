@@ -21,8 +21,10 @@ from app.core.security import mask_api_key
 from app.services.gestion_vacunas import evaluar_vacunas
 from app.core.prompt_manager import cargar_prompt
 from app.repositories import ia_repository as db_ia
+from app.services.filtrar_visitas_service import filtrar_visitas
 
 logger = get_logger(__name__)
+
 
 class AIService:
     """
@@ -157,6 +159,7 @@ class AIService:
             response.raise_for_status() # lanza excepción si el status no es 2xx
             
             data = response.json()
+
             
             # 4. Validación de respuesta: Verificamos que la IA haya devuelto texto
             if "choices" not in data or not data["choices"]:
@@ -187,17 +190,24 @@ class AIService:
                 "modelo": request.model,
                 "resumen_completo": resumen_completo,
                 "resumen_estructurado": resumen_estructurado,
+                "usage": data.get("usage")
             }).execute()
 
             # 10. Mapeo: Retornamos el primer objeto del inssert para el esquema de respuesta
             registro = db_response.data[0]
+            usage_data = data.get("usage")
+            if usage_data:
+                usage_data.pop("prompt_tokens_details", None)
+    
+
             return {
                     "id_resumenia": registro["id_resumenia"],
                     "id_paciente": registro["id_paciente"],
                     "modelo": registro["modelo"],
                     "resumen_completo": registro["resumen_completo"],
                     "resumen_estructurado": registro["resumen_estructurado"],
-                    "fecha_generacion": registro["fecha_generacion"]
+                    "fecha_generacion": registro["fecha_generacion"],
+                    "usage": usage_data
                     }
         
         # -------------------------------------------------------------------------------------------------

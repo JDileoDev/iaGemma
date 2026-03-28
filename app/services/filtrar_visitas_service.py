@@ -9,13 +9,16 @@ async def filtrar_visitas(request):
         resultado = (
             supabase
             .table("ia_request")
-            .select("datos_clinicos->visitas")
+            .select("datos_clinicos->visitas, datos_clinicos->paciente")
             .eq("id_paciente", request.id_paciente)
             .execute()
         )
     
 
-        ids_sucios =[v.get("id_visitas") for visitas in resultado.data for v in visitas.get("visitas") ]
+        ids_sucios =[
+            v.get("id_visitas") for visitas in resultado.data 
+            for v in (visitas.get("visitas") or []) 
+            ]
         
         ids_visitas_db = set(ids_sucios)
         
@@ -25,6 +28,18 @@ async def filtrar_visitas(request):
                 request.datos_clinicos.visitas = [
                     v for v in request.datos_clinicos.visitas if v.id_visitas in ids_nuevos
                 ]
+
+        paciente_en_db = any(
+            registro.get("paciente") is not None
+            for registro in resultado.data
+        )
+
+        import app.models.schemas as md  
+        if paciente_en_db:
+            request.datos_clinicos.paciente = md.Paciente(
+                nombre=request.datos_clinicos.paciente.nombre
+            )
+
         return request
     except Exception as e:
         logger.error(f"error al filtrar las visitas {e}")
