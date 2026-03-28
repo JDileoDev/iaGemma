@@ -127,6 +127,7 @@ class AIService:
         
         # 1. Prompt Engineering: Cargamos instruccions externas y armamos el historial
         system_prompt = cargar_prompt()
+        resumen_previo = await db_ia.obtener_ultimo_resumen(request.id_paciente)
         messages = [
             {
                 "role": "system", 
@@ -135,8 +136,9 @@ class AIService:
             {
                 "role": "user", 
                 "content": (
-                    f"CON ESTE CONTEXTO {await db_ia.obtener_ultimo_resumen(request.id_paciente)}\n Y ESTOS DATOS DEL PACIENTE:\n"
+                    f"CON ESTE CONTEXTO {resumen_previo}\n Y ESTOS DATOS DEL PACIENTE:\n"
                     f"```json\n{datos}\n```\n"
+                    f"{'El paciente es RECURRENTE, ya tiene historial previo. El tipo_paciente DEBE ser Recurrente.' if resumen_previo else ''}\n"
                     "Transformalos en un resumen narrativo fluido, profesional y humano.<|eot|>"
                 )
             }
