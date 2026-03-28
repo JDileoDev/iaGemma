@@ -6,13 +6,12 @@ prompts y la persistencia de datos en Supabase.
 
 import httpx
 import json
-import hashlib
+
 from datetime import datetime
 from typing import List
 from app.core.database import supabase
 from app.config.settings import settings
-from app.models.schemas import ( 
-    DatosClinicos, 
+from app.models.schemas import (  
     ResumeniaRequest, 
     ResumeniaResponse, 
     ModelInfo,
@@ -111,7 +110,6 @@ class AIService:
         
         datos = datos_modelo.model_dump()
         
-        
         datos["evaluacion_sanitaria"] = resultado_sanitario
         datos["fecha_actual"] = fecha_referencia
 
@@ -124,7 +122,7 @@ class AIService:
         )
 
         datos["visitas"] = visitas_ordenadas
-        print(datos) 
+        
         # 1. Prompt Engineering: Cargamos instruccions externas y armamos el historial
         system_prompt = cargar_prompt()
         messages = [
@@ -151,8 +149,6 @@ class AIService:
             "stream": request.stream,
             "response_format": { "type": "json_object" }
         }
-
-        print(f"DEBUG 1 - Fecha recibida: {fecha_actual} (Tipo: {type(fecha_actual)})")
 
         try:
             # 3. LLamada a la API externa
