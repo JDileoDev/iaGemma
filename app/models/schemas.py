@@ -1,61 +1,191 @@
 """Pydantic models for request/response schemas."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field ,ConfigDict ,model_validator
 from typing import List, Optional, Dict, Any
 from datetime import datetime
+import logging
 
+logger = logging.getLogger("uvicorn.error")
 
 class ChatMessage(BaseModel):
     """Chat message model."""
     role: str = Field(..., description="Message role: 'user', 'assistant', or 'system'")
     content: str = Field(..., description="Message content")
 
+# --- Modelos del Dominio Veterinario ---
 
-class ChatRequest(BaseModel):
-    """Chat completion request model."""
-    model: str = Field(default="openai/gpt-3.5-turbo", description="AI model to use")
-    messages: List[ChatMessage] = Field(..., description="List of chat messages")
+class Paciente(BaseModel):
+    """Información base de la mascota."""
+    nombre: str
+    especie: Optional[str] = None
+    edad: Optional[int] = None
+    sexo: Optional[str] = None
+    raza: Optional[str] = None
+    color: Optional[str] = None
+    senia: Optional[str] = None
+    peso: Optional[int | float] = None
+    esterilizado: Optional[bool] = None
+    tiene_microchip: Optional[bool] = None
+    num_microchip: Optional[str] = None
+
+class Visitas(BaseModel):
+    """Registro de consultas médicas."""
+    id_visitas: str
+    fecha: str
+    motivo_consulta: str
+    diagnostico:Optional[str] = None
+    tratamiento: Optional[str] = None
+    observaciones: Optional[str] = None
+    historial_previo: Optional[bool] = None
+
+class Vacunas(BaseModel):
+    """Registro de inmunizaciones."""
+    id_vacunas : str
+    tipo: str
+    nombre_cientifico: str
+    fecha_aplicacion: str
+    observacion: Optional[str] = None
+
+class DatosClinicos(BaseModel):
+    """Contenedor de toda la historia clinica para enviar a la IA."""
+    paciente: Paciente
+    visitas: List[Visitas]
+    vacunas: List[Vacunas]
+
+    @model_validator(mode='after')
+    def verificar_coherencia_especie(self)-> 'DatosClinicos':
+
+        especie_original = self.paciente.especie.lower()[:4]
+
+        REGLAS_EXCLUSION = {
+            "feli": ["cani","perr","porc", "equi","bovi"],
+            "cani": ["feli","gato","gata", "porc","equi","bovi"],
+            "perr": ["feli","gato","gata","porc","equi","bovi"],
+            "gato": ["perr","cani","porc","equi","bovi"],
+            "gata": ["perr","cani","porc","equi","bovi"]
+        }
+
+        palabras_prohibidas = []
+        for k , prohibidas in REGLAS_EXCLUSION.items():
+            if k in especie_original:
+                palabras_prohibidas = prohibidas
+                break
+        for vacuna in self.vacunas:
+            texto_vacuna = (vacuna.tipo + " " + vacuna.nombre_cientifico).lower()
+
+            for prohibida in palabras_prohibidas:
+                if prohibida in texto_vacuna:
+                    logger.error(f"Inconsistencia detectada: El paciente es {self.paciente.especie}"
+                        f"pero la vacuna '{vacuna.tipo} parece ser para otra especie.")
+                    raise ValueError("AI_INPUT_INVALID")
+                
+        return self
+
+class VacunaResponse(BaseModel):
+    nombre: str
+    fecha_aplicacion: str
+    estado: str
+
+class VisitaResponse(BaseModel):
+    fecha: str
+    motivo: str
+    diagnostico: Optional[str] = None
+    tratamiento: Optional[str] = None
+
+class ResumenEstructurado(BaseModel):
+    """Formato JSON que debe generar la IA para que el sistema lo entienda."""
+    estado_general: str
+    tipo_paciente: str
+    sintesis_visitas: List[VisitaResponse]
+    historial_vacunas: List[VacunaResponse]
+    descripcion_clinica: str
+    tratamiento_indicado: str
+    factores_riesgo: List[str]
+    puntos_clave_proximas_consultas: List[str]
+
+class ResumeniaRequest(BaseModel):
+    """Modelo principal para solicitar un nuevo resumen a la IA."""
+    model: str = Field(default="meta/llama-3.3-70b-instruct", description="AI model to use")
+    
+    # Campos obligatorios vinculados al a base de datos.
+    id_paciente: str = Field(... , description="ID del paciente")
+    datos_clinicos: DatosClinicos = Field(... , description="Historial clinico")
+    # Parámetros de control de la IA.
     max_tokens: Optional[int] = Field(default=1000, ge=1, le=4096, description="Maximum tokens to generate")
-    temperature: Optional[float] = Field(default=0.7, ge=0.0, le=2.0, description="Sampling temperature")
+    temperature: Optional[float] = Field(default=0.0, ge=0.0, le=2.0, description="Sampling temperature")
+    frequency_penalty: Optional[float] = Field(default=1.5)
+    presence_penalty : Optional[float] = Field(default=0.5)
     stream: Optional[bool] = Field(default=False, description="Enable streaming response")
+    fecha_actual: Optional[datetime] = Field(default_factory=datetime.now)
+# --- Modelos de Respuesta Estructurada (JSON) ---
 
 
-class ChatResponse(BaseModel):
-    """Chat completion response model."""
-    id: str = Field(..., description="Response ID")
-    object: str = Field(default="chat.completion", description="Object type")
-    created: int = Field(..., description="Creation timestamp")
-    model: str = Field(..., description="Model used")
-    choices: List[Dict[str, Any]] = Field(..., description="Response choices")
-    usage: Optional[Dict[str, int]] = Field(default=None, description="Token usage information")
 
+class ResumeniaResponse(BaseModel):
+    """Respuesta final del microservicio al cliente."""
+    id_resumenia: str = Field(..., description="ID único del resumen")
+    id_paciente: str = Field(..., description="ID del paciente asociado")
+    resumen_completo : str = Field(..., description="Resumen narrativo generado por la IA")
+    resumen_estructurado: ResumenEstructurado = Field(..., description="Datos extraidos en formato JSON")
+    modelo: str = Field(..., description="Modelo utilizado para la generación")
+    fecha_generacion: datetime = Field(default_factory=datetime.now, description="Fecha de creacion del resumen")
+    
+    usage: Optional[Dict[str, Any]] = Field(default=None, description="Token usage information")
+    model_config = ConfigDict(from_attributes=True)
+
+# --- Modelos para Listado y Consultas ---
+
+class ModeloRequest(BaseModel):
+    """Schema para validar requests almacenados."""
+    id_request_ia : str = Field(..., description="ID del request")
+    id_paciente : str = Field(..., description="ID del paciente")
+    datos_clinicos : DatosClinicos = Field(..., description="Historia clinica del paciente")
+    fecha_request: datetime = Field(..., description="Fecha del request" )
+    hash: str = Field (... , description= "Hash del request")
+class RequestsPaciente(BaseModel):
+    """Lista de peticiones realizadas por un paciente."""
+    data: List[ModeloRequest] 
+
+class ModeloResumen(BaseModel):
+    """Schema para validar resúmenes recuperados de la DB."""
+    id_resumenia: str = Field(..., description="ID resumen IA")
+    id_paciente : str = Field(..., description="ID del paciente")
+    resumen_completo: str = Field(..., description="Texto completo del resumen")
+    resumen_estructurado: ResumenEstructurado = Field(..., description="Resumen IA estructurado")
+    fecha_generacion: datetime = Field(...,description= "Fecha de generacion del resumen IA") 
+
+class ResumenesPaciente(BaseModel):
+    """Lista de resúmenes generados para un paciente."""
+    data: List[ModeloResumen]
+
+# --- Modelos de Utilidad y Salud del Sistema ---
 
 class ModelInfo(BaseModel):
-    """AI model information."""
+    """Listado de modelos LLM."""
     id: str = Field(..., description="Model ID")
     name: Optional[str] = Field(default=None, description="Model display name")
     description: Optional[str] = Field(default=None, description="Model description")
     pricing: Optional[Dict[str, Any]] = Field(default=None, description="Pricing information")
 
-
 class HealthResponse(BaseModel):
-    """Health check response model."""
-    status: str = Field(..., description="Service status")
+    """Respuesta para el monitoreo del estado del servicio."""
+    status: str = Field(..., description="Estado del servicio")
     timestamp: datetime = Field(..., description="Response timestamp")
     version: str = Field(..., description="Application version")
     message: Optional[str] = Field(default=None, description="Additional status message")
 
-
 class ErrorResponse(BaseModel):
-    """Error response model."""
+    """Formato estandar para reportar errores al cliente."""
     error: str = Field(..., description="Error type")
     detail: Optional[str] = Field(default=None, description="Error details")
     timestamp: datetime = Field(default_factory=datetime.now, description="Error timestamp")
 
-
 class RootResponse(BaseModel):
     """Root endpoint response model."""
-    message: str = Field(..., description="Welcome message")
-    version: str = Field(..., description="Application version")
-    docs: str = Field(..., description="Documentation URL")
+    message: str = Field(..., description="Bienvenido la gestor de Resumenes veterinarios IA")
+    version: str = Field(..., description="Version 1.0")
+    docs: str = Field(..., description="Documentación URL")
     health: str = Field(..., description="Health check URL")
+
+
+
