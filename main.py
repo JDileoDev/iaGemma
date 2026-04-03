@@ -14,6 +14,10 @@ from app.api.v1 import api_router
 from app.models.schemas import RootResponse
 from app.services.ai_service import ai_service
 
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from app.core.limiter import limiter
+
 # Setup logging
 setup_logging()
 logger = get_logger(__name__)
@@ -40,6 +44,10 @@ app = FastAPI(
     redoc_url="/redoc",
     openapi_url="/openapi.json"
 )
+
+#Limiter
+app.state.limiter = limiter
+app.add_exception_handler (RateLimitExceeded, _rate_limit_exceeded_handler)
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -70,7 +78,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 @app.middleware("http")
 async def validate_internal_api_key(request:Request, call_next):
     #Rutas públicas 
-    public_paths =["/","/docs","redoc","openapi.json","7api/v1/health"]
+    public_paths =["/","/docs","/redoc","/openapi.json","/api/v1/health"]
     
     if request.url.path in public_paths:
         return await call_next(request)
@@ -102,6 +110,8 @@ app.add_middleware(
     allow_methods=settings.cors_allow_methods,
     allow_headers=settings.cors_allow_headers,
 )
+
+
 
 # Include API routers
 app.include_router(api_router)
