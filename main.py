@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
+from fastapi.security import APIKeyHeader
 
 from app.config.settings import settings
 from app.core.logging import setup_logging, get_logger
@@ -38,11 +39,23 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="FastAPI template with NVIDIA NMI AI integration",
+    description="Vetween Resumen IA with NVIDIA NMI AI integration",
     lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
-    openapi_url="/openapi.json"
+    openapi_url="/openapi.json",
+    openapi_extra={
+        "security": [{"InternalApiKey": []}],
+        "components": {
+            "securitySchemes": {
+                "InternalApiKey": {
+                    "type": "apiKey",
+                    "in": "header",
+                    "name": "X-Internal-Key"
+                }
+            }
+        }
+    }
 )
 
 #Limiter
@@ -134,6 +147,38 @@ async def read_item(item_id: int, q: str | None = None):
     """Example endpoint from original template."""
     return {"item_id": item_id, "q": q}
 
+
+from fastapi.openapi.utils import get_openapi
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    
+    # Genera el esquema base
+    openapi_schema = get_openapi(
+        title=settings.app_name,
+        version=settings.app_version,
+        description="Vetween Resumen IA with NVIDIA NMI AI integration",
+        routes=app.routes,
+    )
+    
+    # Inyecta la seguridad manualmente
+    openapi_schema["components"]["securitySchemes"] = {
+        "InternalApiKey": {
+            "type": "apiKey",
+            "in": "header",
+            "name": "X-Internal-Key",
+        }
+    }
+    
+    # Aplica la seguridad a todos los endpoints
+    openapi_schema["security"] = [{"InternalApiKey": []}]
+    
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+# Sobreescribimos el método original de la app
+app.openapi = custom_openapi
 
 if __name__ == "__main__":
     import uvicorn
