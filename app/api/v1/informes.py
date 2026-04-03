@@ -3,8 +3,11 @@ Módulo de rutas para la gestión de informes clínicos generados por IA.
 Este router maneja la comunicación con OpenRouter y la persistencia de resúmenes
 """
 
-from fastapi import APIRouter, HTTPException, Depends,status
+from fastapi import APIRouter, HTTPException, Depends,status, Request
 from typing import List
+
+from app.core.limiter import limiter
+
 
 from app.models.schemas import (
     ModeloResumen,
@@ -50,7 +53,8 @@ async def list_models(ai_service: AIService = Depends(get_ai_service)):
 #-----------------------------------------------------------------------------------
 
 @router.post("/resumenia", response_model=ResumeniaResponse)
-async def resumen_ia(request: ResumeniaRequest, ai_service: AIService = Depends(get_ai_service)):
+@limiter.limit("10/minute")
+async def resumen_ia(request : Request, body: ResumeniaRequest, ai_service: AIService = Depends(get_ai_service)):
     """
     Genera un nuveo resumen clínico utilizando IA.
     1. Registra la petición en la base de datos (Input).
@@ -65,18 +69,18 @@ async def resumen_ia(request: ResumeniaRequest, ai_service: AIService = Depends(
     error_msg = None
 
     try:
-        logger.info(f"Procesando resumen con modelo: {request.model}")
+        logger.info(f"Procesando resumen con modelo: {body.model}")
         
-        await filtro_v.filtrar_visitas(request)
+        await filtro_v.filtrar_visitas(body)
         # Guardar registro de la solicitud (input)
         guardar_request = await db_ia.save_request(
-            request.id_paciente,
-            request.datos_clinicos
+            body.id_paciente,
+            body.datos_clinicos
         )
         if not guardar_request:
             # Si es None, enviamos al cliente el resumen persistido para ese request exacto
             resultado_metrica = "CACHE_HIT"
-            id_paciente = request.id_paciente
+            id_paciente = body.id_paciente
             data = db_ia.total_resumenes_ia_paciente(id_paciente)
             return data[0]
         else:
@@ -88,7 +92,7 @@ async def resumen_ia(request: ResumeniaRequest, ai_service: AIService = Depends(
         # Nota: 'generar_resumenia' internamente guarda el resultado en DB
             
             data = await ai_service.generar_resumenia(
-                request,
+                body,
                 id_request,
                 fecha_actual
                 )
