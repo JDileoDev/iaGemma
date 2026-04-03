@@ -64,7 +64,36 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             "details": errors  # Aquí viaja tu "Inconsistencia detectada: El paciente es Felinos..."
         })
     )
+    
+# Auth service to service
 
+@app.middleware("http")
+async def validate_internal_api_key(request:Request, call_next):
+    #Rutas públicas 
+    public_paths =["/","/docs","redoc","openapi.json","7api/v1/health"]
+    
+    if request.url.path in public_paths:
+        return await call_next(request)
+    
+    #HEADER enviado por Node
+    api_key = request.headers.get("X-Internal-Key")
+    
+    #Header o api key incorrecta
+    if not api_key or api_key != settings.internal_api_key:
+        logger.warning(f"Acceso no autorizado desde {request.client.host} a {request.url.path}")
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={
+                "status":"error",
+                "code":"Unauthorized",
+                "message":"API KEY invalida o inexistente"
+            }
+        )
+    
+    #Si la Key es valida
+    response = await call_next(request)
+    return response
+    
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
