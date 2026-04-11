@@ -7,7 +7,8 @@ from app.models.schemas import HealthResponse
 from app.config.settings import settings
 from app.core.logging import get_logger
 from app.test.test_ia import ping_ia
-import time , supabase
+import time 
+from app.core.database import supabase
 from app.services.ai_service import AIService
 from app.api.dependencies import get_ai_service
 import app.test.test_ia as test_ia
@@ -58,7 +59,7 @@ async def health_check(ai_service: AIService = Depends(get_ai_service)):
     # 3. Lógica de decisión según el rendimiento (Umbral de 0.5 seg)
     elif latencia <= LATENCIA_OK:
         # Estado óptimo: Todo funciona según los estándares
-        mensaje_estado = f"Servicio operativo - NVIA NIM: {nim_status} | Supabase: {supabase_status}"
+        mensaje_estado = f"Servicio operativo - NVIDIA NIM: {nim_status} | Supabase: {supabase_status}"
         tipo_estado = "healthy"
     elif latencia <= LATENCIA_WARN:
         # Estado degradado: El servicio responde, pero está lento

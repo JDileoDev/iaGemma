@@ -55,6 +55,8 @@ class DatosClinicos(BaseModel):
     @model_validator(mode='after')
     def verificar_coherencia_especie(self)-> 'DatosClinicos':
 
+        if not self.paciente or not self.paciente.especie:
+            raise ValueError("El campo 'especie' es obligatorio para la vlidación.")
         especie_original = self.paciente.especie.lower()[:4]
 
         REGLAS_EXCLUSION = {
