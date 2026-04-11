@@ -7,12 +7,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
+from fastapi.security import APIKeyHeader
 
 from app.config.settings import settings
 from app.core.logging import setup_logging, get_logger
 from app.api.v1 import api_router
 from app.models.schemas import RootResponse
 from app.services.ai_service import ai_service
+
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from app.core.limiter import limiter
 
 # Setup logging
 setup_logging()
@@ -34,12 +39,28 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="FastAPI template with NVIDIA NMI AI integration",
+    description="Vetween Resumen IA with NVIDIA NMI AI integration",
     lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
-    openapi_url="/openapi.json"
+    openapi_url="/openapi.json",
+    openapi_extra={
+        "security": [{"InternalApiKey": []}],
+        "components": {
+            "securitySchemes": {
+                "InternalApiKey": {
+                    "type": "apiKey",
+                    "in": "header",
+                    "name": "X-Internal-Key"
+                }
+            }
+        }
+    }
 )
+
+#Limiter
+app.state.limiter = limiter
+app.add_exception_handler (RateLimitExceeded, _rate_limit_exceeded_handler)
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -64,7 +85,36 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             "details": errors  # Aquí viaja tu "Inconsistencia detectada: El paciente es Felinos..."
         })
     )
+    
+# Auth service to service
 
+@app.middleware("http")
+async def validate_internal_api_key(request:Request, call_next):
+    #Rutas públicas 
+    public_paths =["/","/docs","/redoc","/openapi.json","/api/v1/health"]
+    
+    if request.url.path in public_paths:
+        return await call_next(request)
+    
+    #HEADER enviado por Node
+    api_key = request.headers.get("X-Internal-Key")
+    
+    #Header o api key incorrecta
+    if not api_key or api_key != settings.internal_api_key:
+        logger.warning(f"Acceso no autorizado desde {request.client.host} a {request.url.path}")
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={
+                "status":"error",
+                "code":"Unauthorized",
+                "message":"API KEY invalida o inexistente"
+            }
+        )
+    
+    #Si la Key es valida
+    response = await call_next(request)
+    return response
+    
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -73,6 +123,8 @@ app.add_middleware(
     allow_methods=settings.cors_allow_methods,
     allow_headers=settings.cors_allow_headers,
 )
+
+
 
 # Include API routers
 app.include_router(api_router)
@@ -95,6 +147,38 @@ async def read_item(item_id: int, q: str | None = None):
     """Example endpoint from original template."""
     return {"item_id": item_id, "q": q}
 
+
+from fastapi.openapi.utils import get_openapi
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    
+    # Genera el esquema base
+    openapi_schema = get_openapi(
+        title=settings.app_name,
+        version=settings.app_version,
+        description="Vetween Resumen IA with NVIDIA NMI AI integration",
+        routes=app.routes,
+    )
+    
+    # Inyecta la seguridad manualmente
+    openapi_schema["components"]["securitySchemes"] = {
+        "InternalApiKey": {
+            "type": "apiKey",
+            "in": "header",
+            "name": "X-Internal-Key",
+        }
+    }
+    
+    # Aplica la seguridad a todos los endpoints
+    openapi_schema["security"] = [{"InternalApiKey": []}]
+    
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+# Sobreescribimos el método original de la app
+app.openapi = custom_openapi
 
 if __name__ == "__main__":
     import uvicorn
