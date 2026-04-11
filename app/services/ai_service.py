@@ -43,10 +43,15 @@ class AIService:
             headers={
                 "Authorization": f"Bearer {settings.nvidia_api_key}",
                 "Content-Type": "application/json",
-                "HTTP-Referer": "https://github.com/your-username/template-python-fastapi",
+                "HTTP-Referer": "https://github.com/JDileoDev/template-python-fastapi",
                 "X-Title": settings.app_name,
             },
-            timeout=140.0 # Tiempo de espera extendido para procesamiento de LLMs
+            timeout=httpx.Timeout(
+                connect=10.0, # 10 seg- para establecer conexion con NIM
+                read=60.0,  # 60 seg. para recibir la respuesta
+                write=10.0, # 10 seg. para enviar payload
+                pool=5.0 # 5 seg. para obtener una conexión del pool
+            ) 
         )
         # Log de confirmación con enmascaramiento de credenciales por seguridad
         logger.info(f"AI Service initialized with API key: {mask_api_key(settings.nvidia_api_key)}")  
