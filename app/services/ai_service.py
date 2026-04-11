@@ -221,8 +221,14 @@ class AIService:
         # SECCION MANEJO DE EXCEPCIONES
         # -------------------------------------------------------------------------------------------------
         
+        except httpx.ConnectTimeout:
+            logger.error("Timeout de conexión con NVIDIA NMI - el servicio no responde.")
+            raise ValueError("AI_TIMEOUT_CONNECTION")
+        except httpx.ReadTimeout:
+            logger.error("Timeout de lectura con NVIDIA NIM - el modelo tradó demasiado en responder")
+            raise ValueError("AI_TIMEOUT_READ")
         except httpx.TimeoutException:
-            logger.error("Timeout en NVIDIA NMI")
+            logger.error("Timeout general con NVIDIA NIIM")
             raise ValueError("AI_TIMEOUT")
         except httpx.HTTPStatusError as e:
             # Mapeo de errores HTTP a errores de negocio internos
