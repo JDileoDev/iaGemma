@@ -22,6 +22,8 @@ from app.services.gestion_vacunas import evaluar_vacunas
 from app.core.prompt_manager import cargar_prompt
 from app.repositories import ia_repository as db_ia
 from app.services.filtrar_visitas_service import filtrar_visitas
+from app.core.circuit_breaker import nim_breaker , CircuitBreaker
+
 
 logger = get_logger(__name__)
 
@@ -162,7 +164,13 @@ class AIService:
         try:
             # 3. LLamada a la API externa
             logger.info(f"Enviando solicitud de completado a modelo: {request.model}")
-            response = await self.client.post("/chat/completions", json=payload)
+            try:
+                nim_breaker.call()
+                response = await self.client.post("/chat/completions", json=payload)
+                nim_breaker.success()
+            except CircuitBreaker as e:
+                logger.error(f"Circuit breaker abierto - NVIDIA NIM no disponible temporalmente {e}")
+                raise ValueError("AI_CIRCUIT_OPEN")
             response.raise_for_status() # lanza excepción si el status no es 2xx
             
             data = response.json()
@@ -221,16 +229,20 @@ class AIService:
         # SECCION MANEJO DE EXCEPCIONES
         # -------------------------------------------------------------------------------------------------
         
-        except httpx.ConnectTimeout:
+        except httpx.ConnectTimeout as e:
+            nim_breaker.failure(e)
             logger.error("Timeout de conexión con NVIDIA NMI - el servicio no responde.")
             raise ValueError("AI_TIMEOUT_CONNECTION")
-        except httpx.ReadTimeout:
+        except httpx.ReadTimeout as e:
+            nim_breaker.failure(e)
             logger.error("Timeout de lectura con NVIDIA NIM - el modelo tradó demasiado en responder")
             raise ValueError("AI_TIMEOUT_READ")
-        except httpx.TimeoutException:
+        except httpx.TimeoutException as e:
+            nim_breaker.failure(e)
             logger.error("Timeout general con NVIDIA NIIM")
             raise ValueError("AI_TIMEOUT")
         except httpx.HTTPStatusError as e:
+            nim_breaker.failure(e)
             # Mapeo de errores HTTP a errores de negocio internos
             status_code = e.response.status_code
             logger.error(f"Error {status_code} de Nvidia: {e.response.text}")
@@ -249,7 +261,7 @@ class AIService:
         except Exception as e:
             # Fallback crítico; logueamos el error y limpiamos el request huérfano
             logger.error(f"Error inesperado: {str(e)}")
-            self.eliminar_registro(id_request_ia)
+            db_ia.eliminar_registro(id_request_ia)
             raise ValueError("AI_UNKNOWN_ERROR")
 
     async def close(self):

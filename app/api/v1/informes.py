@@ -109,10 +109,10 @@ async def resumen_ia(request : Request, body: ResumeniaRequest, ai_service: AISe
             logger.error(f"No se pudo limpiar el registro fallido: {str(delete_error)}")
         
         # Mapeo de errores específicos del servicio de IA
-        if error_msg in ( "AI_TIMEOUT", "AI_TIMEOUT_CONNECTION", "AI_TIMEOUT_READ"):
+        if error_msg in ( "AI_TIMEOUT", "AI_TIMEOUT_CONNECTION", "AI_TIMEOUT_READ", "AI_CIRCUIT_OPEN"):
             raise HTTPException(
-                status_code=status.HTTP_408_REQUEST_TIMEOUT, 
-                detail="La IA está tardando demasiado. Por favor, intenta de nuevo."
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE, 
+                detail="El servicio de IA no está disponible temporalmente. Por favor, intenta de nuevo."
             )
         elif error_msg == "AI_AUTH_ERROR":
             raise HTTPException(
