@@ -11,11 +11,12 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update --fix-missing && apt-get install -y --no-install-recommends \
     curl \
     tesseract-ocr \
     tesseract-ocr-spa \
     libgl1-mesa-glx \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better Docker layer caching
