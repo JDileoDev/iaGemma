@@ -101,13 +101,15 @@ async def validate_internal_api_key(request:Request, call_next):
     
     #Header o api key incorrecta
     if not api_key or api_key != settings.internal_api_key:
+        print(f"DEBUG: Header recibida: {api_key}")
+        print(f"DEBUG: Key esperada: {settings.internal_api_key}")
         logger.warning(f"Acceso no autorizado desde {request.client.host} a {request.url.path}")
         return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
             content={
                 "status":"error",
                 "code":"Unauthorized",
-                "message":"API KEY invalida o inexistente"
+                "message":"INTERNAL API KEY invalida o inexistente"
             }
         )
     
