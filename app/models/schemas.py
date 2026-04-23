@@ -189,5 +189,8 @@ class RootResponse(BaseModel):
     docs: str = Field(..., description="Documentación URL")
     health: str = Field(..., description="Health check URL")
 
-
-
+class ImportResponse (BaseModel):
+    filename: str
+    mime_type: str
+    caracteres: int
+    contenido: str
