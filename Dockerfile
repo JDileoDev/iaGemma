@@ -16,7 +16,7 @@ RUN apt-get update && \
     curl \
     tesseract-ocr \
     tesseract-ocr-spa \
-    libgl1-mesa-glx \
+    libgl1 \
     ca-certificates && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
