@@ -11,7 +11,7 @@ from fastapi.security import APIKeyHeader
 
 from app.config.settings import settings
 from app.core.logging import setup_logging, get_logger
-from app.api.v1 import api_router
+from app.api.v2 import api_router
 from app.models.schemas import RootResponse
 from app.services.ai_service import ai_service
 
