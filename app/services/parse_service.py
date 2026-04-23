@@ -12,8 +12,10 @@ async def procesar_archivo(file: UploadFile) -> ImportResponse:
     # Detectar parser
         parser = PARSERS.get(file.content_type)
         if not parser:
-            extension = "." + file.filenamersplit(".", 1)[-1].lower()
+            extension = "." + file.filename.rsplit(".", 1)[-1].lower()
             parser = EXTENSION_FALLBACK.get(extension)
+        if not parser:
+            raise ValueError("AI_PARSER_ERROR")
         # Parsear
         content = parser(await file.read())
     except httpx.HTTPStatusError as e:
