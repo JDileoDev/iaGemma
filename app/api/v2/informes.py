@@ -169,7 +169,7 @@ def listar_todos_los_resumenes():
 
 @router.get("/resumenia/{id_paciente}", response_model=list[ModeloResumen])
 def resumenes_paciente(
-    id_paciente : int , 
+    id_paciente :  str, 
     ):
     
     """
