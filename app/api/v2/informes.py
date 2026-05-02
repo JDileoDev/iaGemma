@@ -222,7 +222,7 @@ def listar_requests():
 
 @router.get("/request/{id_paciente}", response_model=list[ModeloRequest])
 def requests_paciente(
-    id_paciente : int , 
+    id_paciente : str , 
 ):
     
     """
