@@ -249,4 +249,23 @@ def requests_paciente(
             status_code=500,
             detail="Error al consultar los registros del paciente"
         )
+from fastapi.responses import FileResponse
+import os
+@router.get("/descargar-logs")
+async def descargar_logs():
+    # El nombre del archivo que se crea en la raíz del contenedor
+    log_filename = "api_vetween_ia.log"
+    
+    # Verificamos si el archivo existe en el sistema de archivos de Docker
+    if not os.path.exists(log_filename):
+        raise HTTPException(status_code=404, detail="El archivo de log aún no se ha generado.")
 
+    try:
+        # FileResponse es perfecto para esto: fuerza la descarga del archivo completo
+        return FileResponse(
+            path=log_filename, 
+            filename="logs_produccion_vetween.txt", 
+            media_type='text/plain'
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al leer el log: {str(e)}")
