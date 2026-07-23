@@ -50,7 +50,7 @@ class AIService:
             },
             timeout=httpx.Timeout(
                 connect=10.0, # 10 seg- para establecer conexion con NIM
-                read=60.0,  # 60 seg. para recibir la respuesta
+                read=120.0,  # 60 seg. para recibir la respuesta
                 write=10.0, # 10 seg. para enviar payload
                 pool=5.0 # 5 seg. para obtener una conexión del pool
             ) 
@@ -168,9 +168,11 @@ class AIService:
                 nim_breaker.call()
                 response = await self.client.post("/chat/completions", json=payload)
                 nim_breaker.success()
-            except CircuitBreaker as e:
-                logger.error(f"Circuit breaker abierto - NVIDIA NIM no disponible temporalmente {e}")
-                raise ValueError("AI_CIRCUIT_OPEN")
+            except Exception as e:
+                if "CircuitBreaker" in type(e).__name__ or "Open" in type(e).__name__:
+                    logger.error(f"Circuit breaker abierto - NVIDIA NIM no disponible temporalmente {e}")
+                    raise ValueError("AI_CIRCUIT_OPEN")
+                raise e
             response.raise_for_status() # lanza excepción si el status no es 2xx
             
             data = response.json()

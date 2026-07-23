@@ -107,7 +107,7 @@ class ResumenEstructurado(BaseModel):
 
 class ResumeniaRequest(BaseModel):
     """Modelo principal para solicitar un nuevo resumen a la IA."""
-    model: str = Field(default="meta/llama-3.3-70b-instruct", description="AI model to use")
+    model: str = Field(default="meta/llama-3.1-70b-instruct", description="AI model to use")
     
     # Campos obligatorios vinculados al a base de datos.
     id_paciente: str = Field(... , description="ID del paciente")
