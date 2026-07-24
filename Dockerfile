@@ -11,7 +11,7 @@ ENV PYTHONUNBUFFERED=1 \
 # Set work directory
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies (Nombre de paquete corregido para Debian)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     -o Acquire::Retries=3 \
@@ -23,7 +23,7 @@ RUN apt-get update && \
     libpango-1.0-0 \
     libharfbuzz0b \
     libpangoft2-1.0-0 \
-    libgdk-pixbuf2.0-0 \
+    libgdk-pixbuf-2.0-0 \
     libffi-dev \
     shared-mime-info && \
     apt-get clean && \
@@ -32,7 +32,7 @@ RUN apt-get update && \
 # Copy requirements first for better Docker layer caching
 COPY requirements.txt ./
 
-# Install dependencies using pip (more reliable for Docker builds)
+# Install dependencies using pip
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application code
@@ -47,9 +47,9 @@ USER appuser
 # Expose port
 EXPOSE 8000
 
-# Health check (updated to new API path)
+# Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/api/v2/health || exit 1
 
-# Run the application using python directly
+# Run the application
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
