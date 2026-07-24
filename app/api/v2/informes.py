@@ -249,6 +249,8 @@ def requests_paciente(
             status_code=500,
             detail="Error al consultar los registros del paciente"
         )
+
+    
 from fastapi.responses import FileResponse
 import os
 @router.get("/descargar-logs")
@@ -269,3 +271,80 @@ async def descargar_logs():
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al leer el log: {str(e)}")
+
+#---------------------------------------------------------------------------------------
+# ENDPOINTS DE EXPORTACIÓN (Generación de Reportes PDF)
+#---------------------------------------------------------------------------------------
+
+
+import ast
+from app.services.generar_reporte_pdf import crear_reporte_clinico_pdf
+@router.get("/resumenia/{id_paciente}/pdf")
+async def descargar_resumen_pdf(id_paciente: str):
+    """
+    Busca el último resumen clínico guardado de un paciente,
+    delega la creación del PDF al servicio y fuerza su descarga.
+    """
+    try:
+        # 1. Recuperamos el historial desde la base de datos
+        data = db_ia.total_resumenes_ia_paciente(id_paciente)
+        
+        if not data:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No se encontró historial clínico guardado para el paciente ID: {id_paciente}."
+            )
+        
+        # 2. Tomamos el registro más reciente y lo formateamos
+        ultimo_resumen = data[0]
+        resumen_dict = ultimo_resumen.dict() if hasattr(ultimo_resumen, "dict") else ultimo_resumen
+
+        # Parseo seguro del string de IA con ast
+        raw_resumen = resumen_dict.get("resumen_estructurado", "{}")
+        if isinstance(raw_resumen, str):
+            try:
+                ia_data = ast.literal_eval(raw_resumen)
+            except Exception:
+                ia_data = {"descripcion_clinica": raw_resumen}
+        else:
+            ia_data = raw_resumen
+
+        # 2. Obtenemos los datos demográficos desde tu otra tabla (requests/pacientes)
+        data_paciente = db_ia.total_request_paciente(id_paciente) 
+        if not data_paciente:
+            raise HTTPException(status_code=404, detail="No se encontraron datos clínicos de filiación para el paciente.")
+        # Desenvolvemos la lista
+        primer_registro = data_paciente[0] if isinstance(data_paciente, list) else data_paciente
+        paciente_dict = primer_registro.dict() if hasattr(primer_registro, "dict") else primer_registro
+        
+        # 🔍 LA CLAVE MAESTRA: Todo vive dentro de 'datos_clinicos'
+        datos_clinicos = paciente_dict.get("datos_clinicos", {})
+        
+        # Ahora sí extraemos 'paciente' desde donde corresponde
+        paciente_info = datos_clinicos.get("paciente", {})
+        # 3. Definimos el nombre del archivo final
+        pdf_filename = f"resumen_clinico_{id_paciente}.pdf"
+
+        # 4. Delegamos la creación al servicio modularizado
+        crear_reporte_clinico_pdf(
+            id_paciente=id_paciente,
+            paciente_info=paciente_info,
+            ia_data=ia_data,
+            file_path=pdf_filename
+        )
+
+        # 5. Respondemos enviando el PDF
+        return FileResponse(
+            path=pdf_filename,
+            filename=pdf_filename,
+            media_type="application/pdf"
+        )
+
+    except HTTPException as http_ex:
+        raise http_ex
+    except Exception as e:
+        logger.error(f"Error en el endpoint de exportación PDF: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ocurrió un error inesperado al compilar el documento PDF. {str(e)}"
+        )
