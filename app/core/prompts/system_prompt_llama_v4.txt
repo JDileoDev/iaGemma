@@ -161,7 +161,8 @@ factores_riesgo:
 Si los hay, mencionarlos en este apartado. No dejar lista vacia, salvo que no exista información clínica suficiente.
 
 descripcion_clinica:
-Mencionar entre 1 y 3 puntos que describan clinicamente al paciente.
+Mencionar entre 1 y 3 puntos que describan clinicamente al paciente, Evita centrarte solo en los datos físicos del animal (como raza, color o peso). Quiero un resumen 
+de su estado de salud, motivos de consulta, diagnósticos y tratamientos mencionados.
 
 sintesis_visitas:
 No elimines ninguna visita que venga en el CONTEXTO que recibes. Agrega la nueva visita a la lista
