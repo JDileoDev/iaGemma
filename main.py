@@ -11,7 +11,7 @@ from fastapi.security import APIKeyHeader
 
 from app.config.settings import settings
 from app.core.logging import setup_logging, get_logger
-from app.api.v1 import api_router
+from app.api.v2 import api_router
 from app.models.schemas import RootResponse
 from app.services.ai_service import ai_service
 
@@ -101,13 +101,14 @@ async def validate_internal_api_key(request:Request, call_next):
     
     #Header o api key incorrecta
     if not api_key or api_key != settings.internal_api_key:
+        
         logger.warning(f"Acceso no autorizado desde {request.client.host} a {request.url.path}")
         return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
             content={
                 "status":"error",
                 "code":"Unauthorized",
-                "message":"API KEY invalida o inexistente"
+                "message":"INTERNAL API KEY invalida o inexistente"
             }
         )
     

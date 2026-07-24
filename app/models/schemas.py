@@ -107,7 +107,7 @@ class ResumenEstructurado(BaseModel):
 
 class ResumeniaRequest(BaseModel):
     """Modelo principal para solicitar un nuevo resumen a la IA."""
-    model: str = Field(default="meta/llama-3.3-70b-instruct", description="AI model to use")
+    model: str = Field(default="nvidia/llama-3.3-nemotron-super-49b-v1", description="AI model to use")
     
     # Campos obligatorios vinculados al a base de datos.
     id_paciente: str = Field(... , description="ID del paciente")
@@ -189,5 +189,8 @@ class RootResponse(BaseModel):
     docs: str = Field(..., description="Documentación URL")
     health: str = Field(..., description="Health check URL")
 
-
-
+class ImportResponse (BaseModel):
+    filename: str
+    mime_type: str
+    caracteres: int
+    contenido: str
