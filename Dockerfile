@@ -17,7 +17,15 @@ RUN apt-get update && \
     tesseract-ocr \
     tesseract-ocr-spa \
     libgl1 \
-    ca-certificates && \
+    ca-certificates \
+    python3-cffi \
+    python3-brotli \
+    libpango-1.0-0 \
+    libharfbuzz0b \
+    libpangoft2-1.0-0 \
+    libgdk-pixbuf2.0-0 \
+    libffi-dev \
+    shared-mime-info && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
