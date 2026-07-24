@@ -18,8 +18,6 @@ RUN apt-get update && \
     tesseract-ocr-spa \
     libgl1 \
     ca-certificates \
-    python3-cffi \
-    python3-brotli \
     libpango-1.0-0 \
     libharfbuzz0b \
     libpangoft2-1.0-0 \
