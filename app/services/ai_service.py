@@ -50,7 +50,7 @@ class AIService:
             },
             timeout=httpx.Timeout(
                 connect=10.0, # 10 seg- para establecer conexion con NIM
-                read=120.0,  # 60 seg. para recibir la respuesta
+                read=60.0,  # 60 seg. para recibir la respuesta
                 write=10.0, # 10 seg. para enviar payload
                 pool=5.0 # 5 seg. para obtener una conexión del pool
             ) 
@@ -152,8 +152,9 @@ class AIService:
         ]   
 
         # 2. Preparacion del Payload siguiendo el contrato de OpenRoute/Gemini
+        modelo_utilizado = request.model
         payload = {
-            "model": request.model,
+            "model": modelo_utilizado,
             "messages": messages,
             "max_tokens": request.max_tokens,
             "temperature": request.temperature,
@@ -165,10 +166,27 @@ class AIService:
             # 3. LLamada a la API externa
             logger.info(f"Enviando solicitud de completado a modelo: {request.model}")
             try:
+                #-- INTENTO 1: modelo Principal con su respectivo breaker --
                 nim_breaker.call()
                 response = await self.client.post("/chat/completions", json=payload)
                 nim_breaker.success()
             except Exception as e:
+                # Captura por si falla el principal o el breaker está abierto.
+                logger.warning(
+                    f"⚠️ Falla en modelo principal ({modelo_utilizado}) o Circuit Breaker abierto. "
+                    f"Detalle: {str(e)}. Activando motor de respaldo..."
+                )
+
+                # --- INTENTO 2: Fallback automático a Mistral Medium ---
+                modelo_utilizado = "nvidia/llama-3.3-nemotron-super-49b-v1.5"
+                payload["model"] = modelo_utilizado
+                payload["temperature"] = 0.0  # Forzamos consistencia en el JSON bajo fallback
+                
+                logger.info(f"🔄 Reintentando petición con modelo de respaldo: {modelo_utilizado}")
+                
+                # Ejecutamos la llamada de contingencia directa
+                response = await self.client.post("/chat/completions", json=payload)
+
                 if "CircuitBreaker" in type(e).__name__ or "Open" in type(e).__name__:
                     logger.error(f"Circuit breaker abierto - NVIDIA NIM no disponible temporalmente {e}")
                     raise ValueError("AI_CIRCUIT_OPEN")
