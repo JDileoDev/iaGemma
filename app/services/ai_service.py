@@ -165,42 +165,61 @@ class AIService:
         try:
             # 3. LLamada a la API externa
             logger.info(f"Enviando solicitud de completado a modelo: {request.model}")
+            
             try:
-                #-- INTENTO 1: modelo Principal con su respectivo breaker --
+                # -- INTENTO 1: modelo Principal con su respectivo breaker --
                 nim_breaker.call()
-                response = await self.client.post("/chat/completions", json=payload)
+                response = await self.client.post(
+                    "/chat/completions", 
+                    json=payload,
+                    timeout=httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=5.0)
+                )
                 nim_breaker.success()
-            except Exception as e:
+                
+            except Exception as e_principal:
                 # Captura por si falla el principal o el breaker está abierto.
                 logger.warning(
                     f"Falla en modelo principal ({modelo_utilizado}) o Circuit Breaker abierto. "
-                    f"Detalle: {str(e)}. Activando motor de respaldo..."
+                    f"Detalle: {str(e_principal)}. Activando motor de respaldo 1..."
                 )
-
-                # --- INTENTO 2: Fallback automático a Mistral Medium ---
-                modelo_utilizado = "meta/llama-3.2-90b-vision-instruct"
-                payload["model"] = modelo_utilizado
-                payload["temperature"] = 0.0  # Forzamos consistencia en el JSON bajo fallback
                 
-                logger.info(f"Reintentando petición con modelo de respaldo: {modelo_utilizado}")
-                
-                # Ejecutamos la llamada de contingencia directa
-                response = await self.client.post("/chat/completions", json=payload)
-
-                # --- INTENTO 3: Fallback automático a Mistral Medium ---
-                modelo_utilizado = "meta/llama-3.1-70b-instruct"
-                payload["model"] = modelo_utilizado
-                payload["temperature"] = 0.0  # Forzamos consistencia en el JSON bajo fallback
-                
-                logger.info(f"Reintentando petición con modelo de respaldo: {modelo_utilizado}")
-                
-                # Ejecutamos la llamada de contingencia directa
-                response = await self.client.post("/chat/completions", json=payload)
-
-                if "CircuitBreaker" in type(e).__name__ or "Open" in type(e).__name__:
-                    logger.error(f"Circuit breaker abierto - NVIDIA NIM no disponible temporalmente {e}")
+                if "CircuitBreaker" in type(e_principal).__name__ or "Open" in type(e_principal).__name__:
+                    logger.error(f"Circuit breaker abierto - NVIDIA NIM no disponible temporalmente {e_principal}")
                     raise ValueError("AI_CIRCUIT_OPEN")
-                raise e
+                
+                try:
+                    # --- INTENTO 2: Fallback automático a Llama 3.2 90b ---
+                    modelo_utilizado = "nvidia/llama-3.3-nemotron-super-49b-v1"
+                    payload["model"] = modelo_utilizado
+                    payload["temperature"] = 0.0  # Forzamos consistencia en el JSON
+                    
+                    logger.info(f"Reintentando peticion con modelo de respaldo: {modelo_utilizado}")
+                    
+                    response = await self.client.post(
+                        "/chat/completions", 
+                        json=payload,
+                        timeout=httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=5.0)
+                    )
+                    
+                except Exception as e_backup_1:
+                    logger.warning(
+                        f"Falla en primer modelo de respaldo ({modelo_utilizado}). "
+                        f"Detalle: {str(e_backup_1)}. Activando segundo motor de respaldo..."
+                    )
+                    
+                    # --- INTENTO 3: Fallback automático a Llama 3.1 70b ---
+                    modelo_utilizado = "meta/llama-3.1-70b-instruct"
+                    payload["model"] = modelo_utilizado
+                    payload["temperature"] = 0.0  
+                    
+                    logger.info(f"Reintentando peticion con segundo modelo de respaldo: {modelo_utilizado}")
+                    
+                    # Ahora sí, la llamada del intento 3 está adentro de su bloque correspondiente
+                    response = await self.client.post(
+                        "/chat/completions", 
+                        json=payload,
+                        timeout=httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=5.0)
+                    )
             response.raise_for_status() # lanza excepción si el status no es 2xx
             
             data = response.json()

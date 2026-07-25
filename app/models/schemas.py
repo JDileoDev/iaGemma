@@ -107,13 +107,13 @@ class ResumenEstructurado(BaseModel):
 
 class ResumeniaRequest(BaseModel):
     """Modelo principal para solicitar un nuevo resumen a la IA."""
-    model: str = Field(default="nvidia/llama-3.3-nemotron-super-49b-v1", description="AI model to use")
+    model: str = Field(default="openai/gpt-oss-20b", description="AI model to use")
     
     # Campos obligatorios vinculados al a base de datos.
     id_paciente: str = Field(... , description="ID del paciente")
     datos_clinicos: DatosClinicos = Field(... , description="Historial clinico")
     # Parámetros de control de la IA.
-    max_tokens: Optional[int] = Field(default=1000, ge=1, le=4096, description="Maximum tokens to generate")
+    max_tokens: Optional[int] = Field(default=1000, ge=1, le=20096, description="Maximum tokens to generate")
     temperature: Optional[float] = Field(default=0.0, ge=0.0, le=2.0, description="Sampling temperature")
     frequency_penalty: Optional[float] = Field(default=1.5)
     presence_penalty : Optional[float] = Field(default=0.5)
