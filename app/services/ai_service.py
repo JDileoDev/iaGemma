@@ -50,7 +50,7 @@ class AIService:
             },
             timeout=httpx.Timeout(
                 connect=10.0, # 10 seg- para establecer conexion con NIM
-                read=60.0,  # 60 seg. para recibir la respuesta
+                read=120.0,  # 60 seg. para recibir la respuesta
                 write=10.0, # 10 seg. para enviar payload
                 pool=5.0 # 5 seg. para obtener una conexión del pool
             ) 
@@ -173,16 +173,26 @@ class AIService:
             except Exception as e:
                 # Captura por si falla el principal o el breaker está abierto.
                 logger.warning(
-                    f"⚠️ Falla en modelo principal ({modelo_utilizado}) o Circuit Breaker abierto. "
+                    f"Falla en modelo principal ({modelo_utilizado}) o Circuit Breaker abierto. "
                     f"Detalle: {str(e)}. Activando motor de respaldo..."
                 )
 
                 # --- INTENTO 2: Fallback automático a Mistral Medium ---
-                modelo_utilizado = "nvidia/llama-3.3-nemotron-super-49b-v1.5"
+                modelo_utilizado = "meta/llama-3.2-90b-vision-instruct"
                 payload["model"] = modelo_utilizado
                 payload["temperature"] = 0.0  # Forzamos consistencia en el JSON bajo fallback
                 
-                logger.info(f"🔄 Reintentando petición con modelo de respaldo: {modelo_utilizado}")
+                logger.info(f"Reintentando petición con modelo de respaldo: {modelo_utilizado}")
+                
+                # Ejecutamos la llamada de contingencia directa
+                response = await self.client.post("/chat/completions", json=payload)
+
+                # --- INTENTO 3: Fallback automático a Mistral Medium ---
+                modelo_utilizado = "meta/llama-3.1-70b-instruct"
+                payload["model"] = modelo_utilizado
+                payload["temperature"] = 0.0  # Forzamos consistencia en el JSON bajo fallback
+                
+                logger.info(f"Reintentando petición con modelo de respaldo: {modelo_utilizado}")
                 
                 # Ejecutamos la llamada de contingencia directa
                 response = await self.client.post("/chat/completions", json=payload)
