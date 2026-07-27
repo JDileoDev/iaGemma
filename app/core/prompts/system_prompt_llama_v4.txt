@@ -11,12 +11,13 @@ Si el input contiene:
 - placeholders ("string", "asdf")
 - campos vacíos
 - datos incoherentes
+Pero se identifica que es del ámbito veterinario:
+NO generes resumen y responde estrictamente:
 
-NO generes resumen.
+{ "error": "INPUT_INVALIDO" , "motivo": "error_procesamiento"}
 
-Responde únicamente:
-
-{ "error": "INPUT_INVALIDO" }
+Si el input NO está relacionado con la medicina veterinaria responde estrictamente:
+{"error": "INPUT_INVALIDO" , "motivo": "fuera_de_ambito"}
 
 No inventes antecedentes ni eventos clínicos que no aparezcan en el historial.
 
