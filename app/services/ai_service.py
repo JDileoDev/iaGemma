@@ -172,11 +172,31 @@ class AIService:
                 response = await self.client.post(
                     "/chat/completions", 
                     json=payload,
-                    timeout=httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=5.0)
+                    timeout=httpx.Timeout(connect=10.0, read=60.0, write=10.0, pool=5.0)
                 )
+                response.raise_for_status()
+                data = response.json()
+                
+                # VALICACION SEMANTICA - INTENTO 1
+                texto_ia = data["choices"][0]["message"]["content"]
+                try:
+                    contenido_json = json.loads(texto_ia)
+                    if contenido_json.get("error") == "INPUT_INVALIDO":
+                        if contenido_json.get("motivo") == "fuera_de_ambito":
+                            logger.info("[Intento 1] Fuera de ámbito detectado. Cortando flujo sin respaldos.")
+                            raise ValueError("AI_INPUT_INVALID")
+
+                        logger.warning(f"[Intento 1] Fallo de procesamiento clínico en {modelo_utilizado}. Forzando fallback... ")
+                        raise ValueError("IA_SEMANTIC_PROCESSING_ERROR")
+                except json.JSONDecodeError:
+                    logger.warning(f"[Intento 1] JSON roto devuelto por {modelo_utilizado}. forzando fallback...")
+                    raise ValueError("IA_JSON_DECODE_ERROR")
                 nim_breaker.success()
                 
+
             except Exception as e_principal:
+                if str(e_principal) == "AI_INPUT_INVALID":
+                    raise e_principal
                 # Captura por si falla el principal o el breaker está abierto.
                 logger.warning(
                     f"Falla en modelo principal ({modelo_utilizado}) o Circuit Breaker abierto. "
@@ -198,10 +218,30 @@ class AIService:
                     response = await self.client.post(
                         "/chat/completions", 
                         json=payload,
-                        timeout=httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=5.0)
+                        timeout=httpx.Timeout(connect=10.0, read=60.0, write=10.0, pool=5.0)
                     )
+                    response.raise_for_status()
+                    data = response.json()
+
+                    # VALIDACIÓN SEMÁNTICA - INTETO 2
+                    texto_ia = data["choices"][0]["message"]["content"]
+                    try:
+                        contenido_json = json.loads(texto_ia)
+                        if contenido_json.get("error") == "INPUT_INVALIDO":
+                            if contenido_json.get("motivo") == "fuera_de_ambito":
+                                logger.info("[Intento 2] Fuera de ámbito detectado. Cortando flujo.")
+                                raise ValueError("AI_INPUT_INVALID")
+
+                            logger.warning(f"[Intento 2] Fallo clínico en {modelo_utilizado}. Yendo al último recurso...")
+                            raise ValueError("IA_SEMANTIC_PROCESSING_ERROR")
+                    except json.JSONDecodeError:
+                        logger.warning(f"[Intento 2] JSON roto en {modelo_utilizado}. Yendo al último recurso.")
+                        raise ValueError("IA_JSON_DECODE_ERROR")
                     
+                
                 except Exception as e_backup_1:
+                    if str(e_backup_1) == "AI_INPUT_INVALID":
+                        raise e_backup_1
                     logger.warning(
                         f"Falla en primer modelo de respaldo ({modelo_utilizado}). "
                         f"Detalle: {str(e_backup_1)}. Activando segundo motor de respaldo..."
@@ -214,15 +254,29 @@ class AIService:
                     
                     logger.info(f"Reintentando peticion con segundo modelo de respaldo: {modelo_utilizado}")
                     
-                    # Ahora sí, la llamada del intento 3 está adentro de su bloque correspondiente
                     response = await self.client.post(
                         "/chat/completions", 
                         json=payload,
-                        timeout=httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=5.0)
+                        timeout=httpx.Timeout(connect=10.0, read=60.0, write=10.0, pool=5.0)
                     )
-            response.raise_for_status() # lanza excepción si el status no es 2xx
-            
-            data = response.json()
+                    response.raise_for_status() # lanza excepción si el status no es 2xx
+                    data = response.json()
+
+                    texto_ia = data["choices"][0]["message"]["content"]
+                    try:
+                        contenido_json = json.loads(texto_ia)
+                    #  LA CLAVE ACÁ: Si el último recurso también confirma que es inválido/fuera de ámbito...
+                        if contenido_json.get("error") == "INPUT_INVALIDO":
+                            logger.warning("[Intento 3] Último modelo de respaldo también devolvió un JSON no válido.")
+                            raise ValueError("AI_INPUT_INVALID")  # <-- Esto gatilla tu 422 en el controladoro 
+                        
+                    except Exception as final_e:
+                        if str(final_e) == "AI_INPUT_INVALID":
+                            raise final_e
+                        logger.error(
+                            "El último modelo de respaldo también devolvió un JSON no válido."
+                            f"Detalle: {str(final_e)}"
+                            )
 
             
             # 4. Validación de respuesta: Verificamos que la IA haya devuelto texto

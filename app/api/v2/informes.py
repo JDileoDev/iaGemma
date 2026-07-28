@@ -67,6 +67,8 @@ async def resumen_ia(request : Request, body: ResumeniaRequest, ai_service: AISe
     inicio_c = time.perf_counter()
     resultado_metrica = "FALLO_DESCONOCIDO"
     error_msg = None
+    id_request = None #Inicialización en None para evitar errores de ambito en el except. 
+
 
     try:
         logger.info(f"Procesando resumen con modelo: {body.model}")
@@ -82,6 +84,15 @@ async def resumen_ia(request : Request, body: ResumeniaRequest, ai_service: AISe
             resultado_metrica = "CACHE_HIT"
             id_paciente = body.id_paciente
             data = db_ia.total_resumenes_ia_paciente(id_paciente)
+
+            # VALIDACIÓN ANTI-INDEXERROR: verifica si la lista tiene elementos
+            if not data:
+                logger.warning(f"Cache hit detectado pero no se encontraron resúmenes previos para el paciente {id_paciente}. ")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Solicitud duplicada. No se encontraror resúmenes previos para este caso."
+                )
+            
             return data[0]
         else:
             resultado_metrica = "CACHE_MISS"
@@ -102,11 +113,13 @@ async def resumen_ia(request : Request, body: ResumeniaRequest, ai_service: AISe
         resultado_metrica = "FALLO"
         error_msg = str(e)
 
-        try:
-            db_ia.eliminar_registro(id_request)
-            logger.info(f"Registro {id_request} eliminado por fallo en IA.")
-        except Exception as delete_error:
-            logger.error(f"No se pudo limpiar el registro fallido: {str(delete_error)}")
+        # Solo se intenta eliminar de la DB si se genera un id_request válido
+        if id_request:
+            try:
+                db_ia.eliminar_registro(id_request)
+                logger.info(f"Registro {id_request} eliminado por fallo en IA.")
+            except Exception as delete_error:
+                logger.error(f"No se pudo limpiar el registro fallido: {str(delete_error)}")
         
         # Mapeo de errores específicos del servicio de IA
         if error_msg in ( "AI_TIMEOUT", "AI_TIMEOUT_CONNECTION", "AI_TIMEOUT_READ", "AI_CIRCUIT_OPEN"):
